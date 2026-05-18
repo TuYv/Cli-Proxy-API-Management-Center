@@ -45,6 +45,28 @@ const formatTime = (value: string, locale: string) => {
   return date.toLocaleString(locale);
 };
 
+const randomToken = (byteCount: number) => {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Secure random generator is unavailable');
+  }
+  const bytes = new Uint8Array(byteCount);
+  globalThis.crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+};
+
+const generatedAPIKeyDraft = (current?: ClientAPIKey): ClientAPIKey => {
+  const token = randomToken(32);
+  const currentDraft = normalizeKeyDraft(current);
+  return {
+    ...currentDraft,
+    id: currentDraft.id.trim() || `key-${token.slice(0, 8).toLowerCase()}`,
+    key: `sk-proxy-${token}`,
+  };
+};
+
 export function AccountsPage() {
   const { t, i18n } = useTranslation();
   const { showNotification, showConfirmation } = useNotificationStore();
@@ -146,6 +168,45 @@ export function AccountsPage() {
         }
       },
     });
+  };
+
+  const copyAPIKey = async (apiKey: string) => {
+    const value = apiKey.trim();
+    if (!value) {
+      showNotification('API key is empty', 'error');
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (!copied) throw new Error('Copy failed');
+      }
+      showNotification('API key copied', 'success');
+    } catch (err) {
+      showNotification(err instanceof Error ? err.message : 'Copy failed', 'error');
+    }
+  };
+
+  const generateNewAPIKey = (accountId: string) => {
+    try {
+      setNewKeyDrafts((prev) => ({
+        ...prev,
+        [accountId]: generatedAPIKeyDraft(prev[accountId]),
+      }));
+      showNotification('API key generated. Copy it before sharing with the client.', 'success');
+    } catch (err) {
+      showNotification(err instanceof Error ? err.message : 'Generate failed', 'error');
+    }
   };
 
   const saveAPIKey = async (accountId: string, apiKey: ClientAPIKey) => {
@@ -341,6 +402,14 @@ export function AccountsPage() {
                               <Button
                                 variant="secondary"
                                 size="sm"
+                                onClick={() => copyAPIKey(keyDraft.key)}
+                                disabled={!keyDraft.key.trim()}
+                              >
+                                Copy
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => saveAPIKey(account.id, keyDraft)}
                                 disabled={disabled}
                               >
@@ -407,6 +476,22 @@ export function AccountsPage() {
                             />
                             Disabled
                           </label>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => generateNewAPIKey(account.id)}
+                            disabled={saving}
+                          >
+                            Generate key
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => copyAPIKey(newKeyDraft.key)}
+                            disabled={!newKeyDraft.key.trim()}
+                          >
+                            Copy
+                          </Button>
                           <Button
                             size="sm"
                             onClick={() => saveAPIKey(account.id, newKeyDraft)}
