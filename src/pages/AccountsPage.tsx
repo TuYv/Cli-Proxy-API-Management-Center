@@ -379,6 +379,8 @@ export function AccountsPage() {
                             />
                             <Input
                               label="API key"
+                              type="password"
+                              autoComplete="off"
                               value={keyDraft.key}
                               disabled={disabled}
                               onChange={(event) =>
