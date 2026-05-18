@@ -15,6 +15,7 @@ import { MainRoutes } from '@/router/MainRoutes';
 import {
   IconSidebarAuthFiles,
   IconSidebarConfig,
+  IconKey,
   IconSidebarDashboard,
   IconSidebarLogs,
   IconSidebarOauth,
@@ -38,6 +39,7 @@ import type { Theme } from '@/types';
 const sidebarIcons: Record<string, ReactNode> = {
   dashboard: <IconSidebarDashboard size={18} />,
   aiProviders: <IconSidebarProviders size={18} />,
+  accounts: <IconKey size={18} />,
   authFiles: <IconSidebarAuthFiles size={18} />,
   oauth: <IconSidebarOauth size={18} />,
   quota: <IconSidebarQuota size={18} />,
@@ -387,6 +389,11 @@ export function MainLayout() {
   const navItems = [
     { path: '/', label: t('nav.dashboard'), icon: sidebarIcons.dashboard },
     { path: '/config', label: t('nav.config_management'), icon: sidebarIcons.config },
+    {
+      path: '/accounts',
+      label: t('nav.accounts', { defaultValue: 'Accounts' }),
+      icon: sidebarIcons.accounts,
+    },
     { path: '/ai-providers', label: t('nav.ai_providers'), icon: sidebarIcons.aiProviders },
     { path: '/auth-files', label: t('nav.auth_files'), icon: sidebarIcons.authFiles },
     { path: '/oauth', label: t('nav.oauth', { defaultValue: 'OAuth' }), icon: sidebarIcons.oauth },
