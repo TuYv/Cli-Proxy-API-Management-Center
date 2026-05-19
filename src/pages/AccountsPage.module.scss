@@ -28,6 +28,17 @@
   flex-wrap: wrap;
 }
 
+.addAccountRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) auto;
+  gap: $spacing-md;
+  align-items: end;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -76,6 +87,13 @@
   gap: 4px;
 }
 
+.accountNameRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
 .accountName {
   color: var(--text-primary);
   font-size: 18px;
@@ -106,17 +124,71 @@
   border-color: color-mix(in srgb, var(--danger-color) 36%, var(--border-color));
 }
 
+.enabledBadge {
+  color: var(--success-color);
+  border-color: color-mix(in srgb, var(--success-color) 36%, var(--border-color));
+}
+
+.accountEditPanel,
+.generatedKeyPanel {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-md;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: $spacing-md;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-primary);
+}
+
+.keysHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-md;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: $spacing-sm;
+  border-top: 1px solid var(--border-color);
+}
+
+.sectionTitle {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.generatedLabel,
+.keyName {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.generatedKeyDetails {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  min-width: min(420px, 100%);
+}
+
+.generatedKey,
+.maskedKey {
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
 .keyList {
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;
 }
 
-.keyRow {
+.keyItem {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(160px, 1fr) minmax(220px, 1.3fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
   gap: $spacing-sm;
-  align-items: end;
+  align-items: center;
   padding: $spacing-md;
   border-radius: $radius-md;
   background: var(--bg-primary);
@@ -127,12 +199,51 @@
   }
 }
 
+.keyIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .checkboxRow {
   display: flex;
   align-items: center;
   gap: $spacing-sm;
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+.usageFilters {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+  margin-bottom: $spacing-md;
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  select,
+  input {
+    height: 38px;
+    padding: 0 $spacing-sm;
+    border: 1px solid var(--border-color);
+    border-radius: $radius-md;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+  }
+}
+
+.filterSummary {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding-bottom: 10px;
 }
 
 .usageTableWrap {

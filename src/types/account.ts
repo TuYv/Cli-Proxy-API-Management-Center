@@ -18,6 +18,11 @@ export interface AccountsResponse {
   accounts?: ClientAccount[];
 }
 
+export interface AccountUsageQuery {
+  from?: string;
+  to?: string;
+}
+
 export interface AccountUsageSnapshot {
   account_id?: string;
   accountId?: string;

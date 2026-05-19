@@ -5,7 +5,12 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { accountsApi } from '@/services/api/accounts';
 import { useAuthStore, useNotificationStore } from '@/stores';
-import type { AccountUsageSnapshot, ClientAPIKey, ClientAccount } from '@/types/account';
+import type {
+  AccountUsageQuery,
+  AccountUsageSnapshot,
+  ClientAPIKey,
+  ClientAccount,
+} from '@/types/account';
 import styles from './AccountsPage.module.scss';
 
 const emptyAccount: ClientAccount = { id: '', name: '', disabled: false, apiKeys: [] };
@@ -57,15 +62,70 @@ const randomToken = (byteCount: number) => {
     .replace(/=+$/g, '');
 };
 
-const generatedAPIKeyDraft = (current?: ClientAPIKey): ClientAPIKey => {
+const generatedAPIKeyDraft = (): ClientAPIKey => {
   const token = randomToken(32);
-  const currentDraft = normalizeKeyDraft(current);
   return {
-    ...currentDraft,
-    id: currentDraft.id.trim() || `key-${token.slice(0, 8).toLowerCase()}`,
+    id: `key-${token.slice(0, 8).toLowerCase()}`,
+    name: '',
     key: `sk-proxy-${token}`,
+    disabled: false,
   };
 };
+
+const maskSecret = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '••••••••';
+  return `${'•'.repeat(24)}${trimmed.slice(-6)}`;
+};
+
+const compactIdentifier = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 18) return trimmed;
+  return `${trimmed.slice(0, 8)}…${trimmed.slice(-6)}`;
+};
+
+type UsageTimePreset = 'all' | '24h' | '7d' | '30d' | 'custom';
+
+const toIsoStringOrEmpty = (value: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+};
+
+const buildUsageQuery = (
+  preset: UsageTimePreset,
+  fromValue: string,
+  toValue: string
+): AccountUsageQuery | undefined => {
+  const now = Date.now();
+  if (preset === 'all') return undefined;
+  if (preset === '24h') {
+    return {
+      from: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date(now).toISOString(),
+    };
+  }
+  if (preset === '7d') {
+    return {
+      from: new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date(now).toISOString(),
+    };
+  }
+  if (preset === '30d') {
+    return {
+      from: new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date(now).toISOString(),
+    };
+  }
+  const from = toIsoStringOrEmpty(fromValue);
+  const to = toIsoStringOrEmpty(toValue);
+  if (!from && !to) return undefined;
+  return { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+};
+
+const keyDraftStateKey = (accountId: string, apiKeyId: string) => `${accountId}:${apiKeyId}`;
 
 export function AccountsPage() {
   const { t, i18n } = useTranslation();
@@ -74,8 +134,14 @@ export function AccountsPage() {
   const [accounts, setAccounts] = useState<ClientAccount[]>([]);
   const [usage, setUsage] = useState<AccountUsageSnapshot[]>([]);
   const [accountDrafts, setAccountDrafts] = useState<Record<string, ClientAccount>>({});
+  const [editingAccounts, setEditingAccounts] = useState<Record<string, boolean>>({});
+  const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({});
   const [newAccount, setNewAccount] = useState<ClientAccount>(emptyAccount);
   const [newKeyDrafts, setNewKeyDrafts] = useState<Record<string, ClientAPIKey>>({});
+  const [keyIdDrafts, setKeyIdDrafts] = useState<Record<string, string>>({});
+  const [usageTimePreset, setUsageTimePreset] = useState<UsageTimePreset>('all');
+  const [usageFrom, setUsageFrom] = useState('');
+  const [usageTo, setUsageTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -86,7 +152,10 @@ export function AccountsPage() {
     setLoading(true);
     setError('');
     try {
-      const [accountList, usageList] = await Promise.all([accountsApi.list(), accountsApi.usage()]);
+      const [accountList, usageList] = await Promise.all([
+        accountsApi.list(),
+        accountsApi.usage(buildUsageQuery(usageTimePreset, usageFrom, usageTo)),
+      ]);
       setAccounts(accountList);
       setUsage(Array.isArray(usageList) ? usageList : []);
       setAccountDrafts(
@@ -94,20 +163,36 @@ export function AccountsPage() {
           accountList.map((account) => [account.id, normalizeAccountDraft(account)])
         )
       );
-      setNewKeyDrafts(
-        Object.fromEntries(accountList.map((account) => [account.id, normalizeKeyDraft()]))
+      setNewKeyDrafts((prev) =>
+        Object.fromEntries(
+          accountList.map((account) => [account.id, prev[account.id] ?? normalizeKeyDraft()])
+        )
       );
+      setExpandedAccounts((prev) =>
+        Object.fromEntries(accountList.map((account) => [account.id, prev[account.id] ?? false]))
+      );
+      setKeyIdDrafts({});
     } catch (err) {
       const message = err instanceof Error ? err.message : t('notification.refresh_failed');
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, usageFrom, usageTimePreset, usageTo]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const toggleAccountExpanded = (accountId: string) => {
+    setExpandedAccounts((prev) => ({ ...prev, [accountId]: !prev[accountId] }));
+  };
+
+  const setAccountEditing = (account: ClientAccount, editing: boolean) => {
+    setEditingAccounts((prev) => ({ ...prev, [account.id]: editing }));
+    setAccountDrafts((prev) => ({ ...prev, [account.id]: normalizeAccountDraft(account) }));
+    if (editing) setExpandedAccounts((prev) => ({ ...prev, [account.id]: true }));
+  };
 
   const updateAccountDraft = (accountId: string, patch: Partial<ClientAccount>) => {
     setAccountDrafts((prev) => ({
@@ -116,36 +201,32 @@ export function AccountsPage() {
     }));
   };
 
-  const updateKeyDraft = (accountId: string, keyId: string, patch: Partial<ClientAPIKey>) => {
-    setAccountDrafts((prev) => {
-      const account = normalizeAccountDraft(prev[accountId] ?? { id: accountId });
-      const apiKeys = (account.apiKeys ?? []).map((apiKey) =>
-        apiKey.id === keyId ? { ...normalizeKeyDraft(apiKey), ...patch } : apiKey
-      );
-      return { ...prev, [accountId]: { ...account, apiKeys } };
-    });
+  const updateKeyIdDraft = (accountId: string, apiKeyId: string, value: string) => {
+    setKeyIdDrafts((prev) => ({ ...prev, [keyDraftStateKey(accountId, apiKeyId)]: value }));
   };
 
   const saveAccount = async (account: ClientAccount) => {
     if (!account.id.trim()) {
       showNotification('Account ID is required', 'error');
-      return;
+      return false;
     }
     setSaving(true);
     try {
       await accountsApi.upsert(account);
       await loadData();
       showNotification('Account saved', 'success');
+      return true;
     } catch (err) {
       showNotification(err instanceof Error ? err.message : 'Save failed', 'error');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const addAccount = async () => {
-    await saveAccount({ ...newAccount, apiKeys: [] });
-    setNewAccount(emptyAccount);
+    const saved = await saveAccount({ ...newAccount, apiKeys: [] });
+    if (saved) setNewAccount(emptyAccount);
   };
 
   const deleteAccount = (accountId: string) => {
@@ -199,32 +280,59 @@ export function AccountsPage() {
 
   const generateNewAPIKey = (accountId: string) => {
     try {
-      setNewKeyDrafts((prev) => ({
-        ...prev,
-        [accountId]: generatedAPIKeyDraft(prev[accountId]),
-      }));
+      setExpandedAccounts((prev) => ({ ...prev, [accountId]: true }));
+      setNewKeyDrafts((prev) => ({ ...prev, [accountId]: generatedAPIKeyDraft() }));
       showNotification('API key generated. Copy it before sharing with the client.', 'success');
     } catch (err) {
       showNotification(err instanceof Error ? err.message : 'Generate failed', 'error');
     }
   };
 
-  const saveAPIKey = async (accountId: string, apiKey: ClientAPIKey) => {
-    if (!apiKey.id.trim() || !apiKey.key.trim()) {
-      showNotification('API key ID and key are required', 'error');
-      return;
+  const discardNewAPIKey = (accountId: string) => {
+    setNewKeyDrafts((prev) => ({ ...prev, [accountId]: normalizeKeyDraft() }));
+  };
+
+  const saveAPIKey = async (accountId: string, apiKey: ClientAPIKey, originalId?: string) => {
+    const normalized = normalizeKeyDraft(apiKey);
+    const nextId = normalized.id.trim();
+    const previousId = originalId?.trim();
+    if (!nextId || !normalized.key.trim()) {
+      showNotification('API key ID and value are required', 'error');
+      return false;
+    }
+    const account = accounts.find((item) => item.id === accountId);
+    const duplicate = account?.apiKeys?.some(
+      (item) => item.id.trim() === nextId && item.id.trim() !== previousId
+    );
+    if (duplicate) {
+      showNotification('API key ID already exists in this account', 'error');
+      return false;
     }
     setSaving(true);
     try {
-      await accountsApi.upsertAPIKey(accountId, apiKey);
+      await accountsApi.upsertAPIKey(accountId, {
+        ...normalized,
+        id: nextId,
+        key: normalized.key.trim(),
+      });
+      if (previousId && previousId !== nextId) {
+        await accountsApi.deleteAPIKey(accountId, previousId);
+      }
       await loadData();
       setNewKeyDrafts((prev) => ({ ...prev, [accountId]: normalizeKeyDraft() }));
       showNotification('API key saved', 'success');
+      return true;
     } catch (err) {
       showNotification(err instanceof Error ? err.message : 'Save failed', 'error');
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleAPIKeyDisabled = async (accountId: string, apiKey: ClientAPIKey) => {
+    const keyDraft = normalizeKeyDraft(apiKey);
+    await saveAPIKey(accountId, { ...keyDraft, disabled: !apiKey.disabled }, keyDraft.id);
   };
 
   const deleteAPIKey = (accountId: string, apiKeyId: string) => {
@@ -267,7 +375,7 @@ export function AccountsPage() {
         {error ? <div className={styles.errorBox}>{error}</div> : null}
 
         <Card title="Add account">
-          <div className={styles.formGrid}>
+          <div className={styles.addAccountRow}>
             <Input
               label="Account ID"
               value={newAccount.id}
@@ -280,19 +388,6 @@ export function AccountsPage() {
               disabled={disabled}
               onChange={(event) => setNewAccount((prev) => ({ ...prev, name: event.target.value }))}
             />
-          </div>
-          <label className={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={Boolean(newAccount.disabled)}
-              disabled={disabled}
-              onChange={(event) =>
-                setNewAccount((prev) => ({ ...prev, disabled: event.target.checked }))
-              }
-            />
-            Disabled
-          </label>
-          <div className={styles.inlineActions}>
             <Button onClick={addAccount} disabled={disabled || !newAccount.id.trim()}>
               Add account
             </Button>
@@ -309,26 +404,42 @@ export function AccountsPage() {
               {accounts.map((account) => {
                 const draft = normalizeAccountDraft(accountDrafts[account.id] ?? account);
                 const newKeyDraft = normalizeKeyDraft(newKeyDrafts[account.id]);
+                const isEditing = Boolean(editingAccounts[account.id]);
+                const isExpanded = Boolean(expandedAccounts[account.id]);
+                const apiKeys = draft.apiKeys ?? [];
                 return (
                   <div key={account.id} className={styles.accountCard}>
                     <div className={styles.accountHeader}>
                       <div className={styles.accountTitle}>
-                        <div className={styles.accountName}>{account.name || account.id}</div>
+                        <div className={styles.accountNameRow}>
+                          <span className={styles.accountName}>{account.name || account.id}</span>
+                          {account.disabled ? (
+                            <span className={`${styles.badge} ${styles.disabledBadge}`}>
+                              Disabled
+                            </span>
+                          ) : null}
+                        </div>
                         <div className={styles.accountMeta}>ID: {account.id}</div>
-                        {account.disabled ? (
-                          <span className={`${styles.badge} ${styles.disabledBadge}`}>
-                            Disabled
-                          </span>
-                        ) : null}
+                        <div className={styles.accountMeta}>
+                          {apiKeys.length} API key{apiKeys.length === 1 ? '' : 's'}
+                        </div>
                       </div>
                       <div className={styles.inlineActions}>
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => saveAccount(draft)}
-                          disabled={disabled}
+                          onClick={() => toggleAccountExpanded(account.id)}
+                          disabled={saving}
                         >
-                          Save account
+                          {isExpanded ? 'Collapse' : 'Expand'}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setAccountEditing(account, !isEditing)}
+                          disabled={saving}
+                        >
+                          {isEditing ? 'Cancel' : 'Edit'}
                         </Button>
                         <Button
                           variant="danger"
@@ -341,169 +452,204 @@ export function AccountsPage() {
                       </div>
                     </div>
 
-                    <div className={styles.formGrid}>
-                      <Input
-                        label="Account name"
-                        value={draft.name ?? ''}
-                        disabled={disabled}
-                        onChange={(event) =>
-                          updateAccountDraft(account.id, { name: event.target.value })
-                        }
-                      />
-                      <label className={styles.checkboxRow}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(draft.disabled)}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            updateAccountDraft(account.id, { disabled: event.target.checked })
-                          }
-                        />
-                        Disabled
-                      </label>
-                    </div>
-
-                    <div className={styles.keyList}>
-                      {(draft.apiKeys ?? []).map((apiKey) => {
-                        const keyDraft = normalizeKeyDraft(apiKey);
-                        return (
-                          <div key={apiKey.id} className={styles.keyRow}>
-                            <Input label="Key ID" value={keyDraft.id} disabled />
-                            <Input
-                              label="Name"
-                              value={keyDraft.name ?? ''}
-                              disabled={disabled}
-                              onChange={(event) =>
-                                updateKeyDraft(account.id, apiKey.id, { name: event.target.value })
-                              }
-                            />
-                            <Input
-                              label="API key"
-                              type="password"
-                              autoComplete="off"
-                              value={keyDraft.key}
-                              disabled={disabled}
-                              onChange={(event) =>
-                                updateKeyDraft(account.id, apiKey.id, { key: event.target.value })
-                              }
-                            />
-                            <div className={styles.inlineActions}>
+                    {isExpanded ? (
+                      <>
+                        {isEditing ? (
+                          <div className={styles.accountEditPanel}>
+                            <div className={styles.formGrid}>
+                              <Input
+                                label="Account name"
+                                value={draft.name ?? ''}
+                                disabled={disabled}
+                                onChange={(event) =>
+                                  updateAccountDraft(account.id, { name: event.target.value })
+                                }
+                              />
                               <label className={styles.checkboxRow}>
                                 <input
                                   type="checkbox"
-                                  checked={Boolean(keyDraft.disabled)}
+                                  checked={Boolean(draft.disabled)}
                                   disabled={disabled}
                                   onChange={(event) =>
-                                    updateKeyDraft(account.id, apiKey.id, {
+                                    updateAccountDraft(account.id, {
                                       disabled: event.target.checked,
                                     })
                                   }
                                 />
                                 Disabled
                               </label>
+                            </div>
+                            <div className={styles.inlineActions}>
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => copyAPIKey(keyDraft.key)}
-                                disabled={!keyDraft.key.trim()}
+                                onClick={() => setAccountEditing(account, false)}
+                                disabled={saving}
                               >
-                                Copy
+                                Cancel
                               </Button>
                               <Button
-                                variant="secondary"
                                 size="sm"
-                                onClick={() => saveAPIKey(account.id, keyDraft)}
+                                onClick={async () => {
+                                  if (await saveAccount(draft)) {
+                                    setEditingAccounts((prev) => ({
+                                      ...prev,
+                                      [account.id]: false,
+                                    }));
+                                  }
+                                }}
                                 disabled={disabled}
                               >
-                                Save
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => deleteAPIKey(account.id, apiKey.id)}
-                                disabled={disabled}
-                              >
-                                Delete
+                                Save changes
                               </Button>
                             </div>
                           </div>
-                        );
-                      })}
-                      <div className={styles.keyRow}>
-                        <Input
-                          label="New key ID"
-                          value={newKeyDraft.id}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            setNewKeyDrafts((prev) => ({
-                              ...prev,
-                              [account.id]: { ...newKeyDraft, id: event.target.value },
-                            }))
-                          }
-                        />
-                        <Input
-                          label="Name"
-                          value={newKeyDraft.name ?? ''}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            setNewKeyDrafts((prev) => ({
-                              ...prev,
-                              [account.id]: { ...newKeyDraft, name: event.target.value },
-                            }))
-                          }
-                        />
-                        <Input
-                          label="API key"
-                          value={newKeyDraft.key}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            setNewKeyDrafts((prev) => ({
-                              ...prev,
-                              [account.id]: { ...newKeyDraft, key: event.target.value },
-                            }))
-                          }
-                        />
-                        <div className={styles.inlineActions}>
-                          <label className={styles.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={Boolean(newKeyDraft.disabled)}
-                              disabled={disabled}
-                              onChange={(event) =>
-                                setNewKeyDrafts((prev) => ({
-                                  ...prev,
-                                  [account.id]: { ...newKeyDraft, disabled: event.target.checked },
-                                }))
-                              }
-                            />
-                            Disabled
-                          </label>
+                        ) : null}
+
+                        <div className={styles.keysHeader}>
+                          <div>
+                            <div className={styles.sectionTitle}>API keys</div>
+                            <div className={styles.accountMeta}>
+                              Saved keys are hidden; Copy uses the plaintext value.
+                            </div>
+                          </div>
                           <Button
                             variant="secondary"
                             size="sm"
                             onClick={() => generateNewAPIKey(account.id)}
                             disabled={saving}
                           >
-                            Generate key
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => copyAPIKey(newKeyDraft.key)}
-                            disabled={!newKeyDraft.key.trim()}
-                          >
-                            Copy
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => saveAPIKey(account.id, newKeyDraft)}
-                            disabled={disabled || !newKeyDraft.id.trim() || !newKeyDraft.key.trim()}
-                          >
-                            Add key
+                            Generate new key
                           </Button>
                         </div>
-                      </div>
-                    </div>
+
+                        {newKeyDraft.key ? (
+                          <div className={styles.generatedKeyPanel}>
+                            <div className={styles.generatedKeyDetails}>
+                              <div className={styles.generatedLabel}>New key generated</div>
+                              <Input
+                                label="Key ID"
+                                value={newKeyDraft.id}
+                                disabled={saving}
+                                onChange={(event) =>
+                                  setNewKeyDrafts((prev) => ({
+                                    ...prev,
+                                    [account.id]: { ...newKeyDraft, id: event.target.value },
+                                  }))
+                                }
+                              />
+                              <div className={styles.generatedKey}>{newKeyDraft.key}</div>
+                            </div>
+                            <div className={styles.inlineActions}>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => copyAPIKey(newKeyDraft.key)}
+                              >
+                                Copy
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => saveAPIKey(account.id, newKeyDraft)}
+                                disabled={disabled}
+                              >
+                                Add key
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => discardNewAPIKey(account.id)}
+                                disabled={saving}
+                              >
+                                Discard
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className={styles.keyList}>
+                          {apiKeys.length === 0 ? (
+                            <div className={styles.emptyText}>
+                              No API keys issued for this account.
+                            </div>
+                          ) : (
+                            apiKeys.map((apiKey) => {
+                              const keyDraft = normalizeKeyDraft(apiKey);
+                              const keyIdDraftKey = keyDraftStateKey(account.id, apiKey.id);
+                              const keyIdDraft = keyIdDrafts[keyIdDraftKey] ?? keyDraft.id;
+                              const keyIdChanged = keyIdDraft.trim() !== keyDraft.id;
+                              return (
+                                <div key={apiKey.id} className={styles.keyItem}>
+                                  <div className={styles.keyIdentity}>
+                                    <div className={styles.keyName}>
+                                      {keyDraft.name || keyDraft.id}
+                                    </div>
+                                    <Input
+                                      label="Key ID"
+                                      value={keyIdDraft}
+                                      disabled={saving}
+                                      onChange={(event) =>
+                                        updateKeyIdDraft(account.id, apiKey.id, event.target.value)
+                                      }
+                                    />
+                                  </div>
+                                  <div className={styles.maskedKey}>{maskSecret(keyDraft.key)}</div>
+                                  {keyDraft.disabled ? (
+                                    <span className={`${styles.badge} ${styles.disabledBadge}`}>
+                                      Disabled
+                                    </span>
+                                  ) : (
+                                    <span className={`${styles.badge} ${styles.enabledBadge}`}>
+                                      Active
+                                    </span>
+                                  )}
+                                  <div className={styles.inlineActions}>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => copyAPIKey(keyDraft.key)}
+                                      disabled={!keyDraft.key.trim()}
+                                    >
+                                      Copy
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() =>
+                                        saveAPIKey(
+                                          account.id,
+                                          { ...keyDraft, id: keyIdDraft },
+                                          keyDraft.id
+                                        )
+                                      }
+                                      disabled={disabled || !keyIdChanged || !keyIdDraft.trim()}
+                                    >
+                                      Save ID
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => toggleAPIKeyDisabled(account.id, keyDraft)}
+                                      disabled={disabled}
+                                    >
+                                      {keyDraft.disabled ? 'Enable' : 'Disable'}
+                                    </Button>
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      onClick={() => deleteAPIKey(account.id, apiKey.id)}
+                                      disabled={disabled}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 );
               })}
@@ -512,8 +658,50 @@ export function AccountsPage() {
         </Card>
 
         <Card title="Account usage">
+          <div className={styles.usageFilters}>
+            <label className={styles.filterField}>
+              <span>Time range</span>
+              <select
+                value={usageTimePreset}
+                onChange={(event) => setUsageTimePreset(event.target.value as UsageTimePreset)}
+              >
+                <option value="all">All time</option>
+                <option value="24h">Last 24 hours</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            {usageTimePreset === 'custom' ? (
+              <>
+                <label className={styles.filterField}>
+                  <span>From</span>
+                  <input
+                    type="datetime-local"
+                    value={usageFrom}
+                    onChange={(event) => setUsageFrom(event.target.value)}
+                  />
+                </label>
+                <label className={styles.filterField}>
+                  <span>To</span>
+                  <input
+                    type="datetime-local"
+                    value={usageTo}
+                    onChange={(event) => setUsageTo(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
+            <div className={styles.filterSummary}>
+              Showing {usage.length} backend total rows for the selected time range.
+            </div>
+          </div>
           {usage.length === 0 ? (
-            <div className={styles.emptyText}>No account usage has been recorded yet.</div>
+            <div className={styles.emptyText}>
+              {usageTimePreset === 'all'
+                ? 'No account usage has been recorded yet.'
+                : 'No usage matches the selected time range.'}
+            </div>
           ) : (
             <div className={styles.usageTableWrap}>
               <table className={styles.usageTable}>
@@ -534,10 +722,13 @@ export function AccountsPage() {
                     const apiKeyId = usageValue(item, 'api_key_id', 'apiKeyId');
                     const apiKeyName = usageValue(item, 'api_key_name', 'apiKeyName');
                     const lastUsedAt = usageValue(item, 'last_used_at', 'lastUsedAt');
+                    const compactKeyId = compactIdentifier(apiKeyId);
                     return (
                       <tr key={`${accountId}:${apiKeyId}:${index}`}>
                         <td>{accountName ? `${accountName} (${accountId})` : accountId}</td>
-                        <td>{apiKeyName ? `${apiKeyName} (${apiKeyId})` : apiKeyId || '-'}</td>
+                        <td>
+                          {apiKeyName ? `${apiKeyName} (${compactKeyId})` : compactKeyId || '-'}
+                        </td>
                         <td>{item.requests ?? 0}</td>
                         <td>{item.failures ?? 0}</td>
                         <td>{tokenTotal(item)}</td>

@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type {
+  AccountUsageQuery,
   AccountUsageSnapshot,
   AccountsResponse,
   ClientAPIKey,
@@ -92,5 +93,9 @@ export const accountsApi = {
       `/accounts/${encodeURIComponent(accountId)}/api-keys/${encodeURIComponent(apiKeyId)}`
     ),
 
-  usage: () => apiClient.get<AccountUsageSnapshot[]>('/account-usage', { timeout: 15 * 1000 }),
+  usage: (query?: AccountUsageQuery) =>
+    apiClient.get<AccountUsageSnapshot[]>('/account-usage', {
+      params: query,
+      timeout: 15 * 1000,
+    }),
 };
