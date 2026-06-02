@@ -30,6 +30,7 @@ import iconGrokDark from '@/assets/icons/grok-dark.svg';
 import iconDeepseek from '@/assets/icons/deepseek.svg';
 import iconMinimax from '@/assets/icons/minimax.svg';
 import styles from './SystemPage.module.scss';
+import { buildReleaseUrl, compareVersions } from '@/utils/version';
 
 const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: string }> = {
   gpt: { light: iconOpenaiLight, dark: iconOpenaiDark },
@@ -43,31 +44,20 @@ const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: strin
   minimax: iconMinimax,
 };
 
-const parseVersionSegments = (version?: string | null) => {
-  if (!version) return null;
-  const cleaned = version.trim().replace(/^v/i, '');
-  if (!cleaned) return null;
-  const parts = cleaned
-    .split(/[^0-9]+/)
-    .filter(Boolean)
-    .map((segment) => Number.parseInt(segment, 10))
-    .filter(Number.isFinite);
-  return parts.length ? parts : null;
-};
+type VersionCheckStatus =
+  | 'idle'
+  | 'loading'
+  | 'update-available'
+  | 'latest'
+  | 'not-comparable'
+  | 'error';
 
-const compareVersions = (latest?: string | null, current?: string | null) => {
-  const latestParts = parseVersionSegments(latest);
-  const currentParts = parseVersionSegments(current);
-  if (!latestParts || !currentParts) return null;
-  const length = Math.max(latestParts.length, currentParts.length);
-  for (let i = 0; i < length; i++) {
-    const l = latestParts[i] || 0;
-    const c = currentParts[i] || 0;
-    if (l > c) return 1;
-    if (l < c) return -1;
-  }
-  return 0;
-};
+interface VersionCheckState {
+  status: VersionCheckStatus;
+  latestVersion: string | null;
+  checkedAt: number | null;
+  errorMessage: string | null;
+}
 
 export function SystemPage() {
   const { t, i18n } = useTranslation();
@@ -92,11 +82,17 @@ export function SystemPage() {
   const [requestLogDraft, setRequestLogDraft] = useState(false);
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
-  const [checkingVersion, setCheckingVersion] = useState(false);
+  const [versionCheckState, setVersionCheckState] = useState<VersionCheckState>({
+    status: 'idle',
+    latestVersion: null,
+    checkedAt: null,
+    errorMessage: null,
+  });
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
   const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const versionCheckRequestId = useRef(0);
 
   const otherLabel = useMemo(
     () => (i18n.language?.toLowerCase().startsWith('zh') ? '其他' : 'Other'),
@@ -106,12 +102,53 @@ export function SystemPage() {
   const requestLogEnabled = config?.requestLog ?? false;
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
+  const currentVersionScope = `${auth.apiBase}::${auth.connectionStatus}::${auth.serverVersion ?? ''}`;
+  const versionCheckScopeRef = useRef(currentVersionScope);
+  versionCheckScopeRef.current = currentVersionScope;
 
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
   const buildTime = auth.serverBuildDate
     ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
     : t('system_info.version_unknown');
+  const latestVersionDisplay = versionCheckState.latestVersion || t('system_info.version_unknown');
+  const versionReleaseUrl = buildReleaseUrl(versionCheckState.latestVersion);
+  const versionLastChecked = versionCheckState.checkedAt
+    ? new Date(versionCheckState.checkedAt).toLocaleString(i18n.language)
+    : null;
+  const versionStatusText = useMemo(() => {
+    switch (versionCheckState.status) {
+      case 'loading':
+        return t('system_info.version_checking');
+      case 'update-available':
+        return t('system_info.version_update_available', {
+          version: versionCheckState.latestVersion || t('system_info.version_unknown'),
+        });
+      case 'latest':
+        return t('system_info.version_is_latest');
+      case 'not-comparable':
+        return t('system_info.version_current_missing');
+      case 'error':
+        return versionCheckState.errorMessage
+          ? `${t('system_info.version_check_error')}: ${versionCheckState.errorMessage}`
+          : t('system_info.version_check_error');
+      case 'idle':
+      default:
+        return t('system_info.version_check_idle');
+    }
+  }, [t, versionCheckState.errorMessage, versionCheckState.latestVersion, versionCheckState.status]);
+  const versionStatusClassName = useMemo(() => {
+    switch (versionCheckState.status) {
+      case 'update-available':
+        return styles.versionStatusWarning;
+      case 'latest':
+        return styles.versionStatusSuccess;
+      case 'error':
+        return styles.versionStatusError;
+      default:
+        return styles.versionStatusNeutral;
+    }
+  }, [versionCheckState.status]);
 
   const getIconForCategory = (categoryId: string): string | null => {
     const iconEntry = MODEL_CATEGORY_ICONS[categoryId];
@@ -283,35 +320,85 @@ export function SystemPage() {
   };
 
   const handleVersionCheck = useCallback(async () => {
-    setCheckingVersion(true);
-    try {
-      const data = await versionApi.checkLatest();
-      const latestRaw = data?.['latest-version'] ?? data?.latest_version ?? data?.latest ?? '';
-      const latest = typeof latestRaw === 'string' ? latestRaw : String(latestRaw ?? '');
-      const comparison = compareVersions(latest, auth.serverVersion);
+    const requestId = versionCheckRequestId.current + 1;
+    versionCheckRequestId.current = requestId;
+    const requestScope = versionCheckScopeRef.current;
+    const isStaleRequest = () =>
+      versionCheckRequestId.current !== requestId || versionCheckScopeRef.current !== requestScope;
 
-      if (!latest) {
+    setVersionCheckState((prev) => ({
+      ...prev,
+      status: 'loading',
+      errorMessage: null,
+    }));
+
+    try {
+      const result = await versionApi.checkLatest();
+      if (isStaleRequest()) {
+        return;
+      }
+
+      if (!result.latestVersion) {
+        setVersionCheckState({
+          status: 'error',
+          latestVersion: null,
+          checkedAt: Date.now(),
+          errorMessage: null,
+        });
         showNotification(t('system_info.version_check_error'), 'error');
         return;
       }
 
+      const comparison = compareVersions(result.latestVersion, auth.serverVersion);
+      const checkedAt = Date.now();
+
       if (comparison === null) {
+        setVersionCheckState({
+          status: 'not-comparable',
+          latestVersion: result.latestVersion,
+          checkedAt,
+          errorMessage: null,
+        });
         showNotification(t('system_info.version_current_missing'), 'warning');
         return;
       }
 
       if (comparison > 0) {
-        showNotification(t('system_info.version_update_available', { version: latest }), 'warning');
-      } else {
-        showNotification(t('system_info.version_is_latest'), 'success');
+        setVersionCheckState({
+          status: 'update-available',
+          latestVersion: result.latestVersion,
+          checkedAt,
+          errorMessage: null,
+        });
+        showNotification(
+          t('system_info.version_update_available', { version: result.latestVersion }),
+          'warning'
+        );
+        return;
       }
+
+      setVersionCheckState({
+        status: 'latest',
+        latestVersion: result.latestVersion,
+        checkedAt,
+        errorMessage: null,
+      });
+      showNotification(t('system_info.version_is_latest'), 'success');
     } catch (error: unknown) {
+      if (isStaleRequest()) {
+        return;
+      }
+
       const message =
         error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      setVersionCheckState({
+        status: 'error',
+        latestVersion: null,
+        checkedAt: Date.now(),
+        errorMessage: message || null,
+      });
       const suffix = message ? `: ${message}` : '';
       showNotification(`${t('system_info.version_check_error')}${suffix}`, 'error');
-    } finally {
-      setCheckingVersion(false);
     }
   }, [auth.serverVersion, showNotification, t]);
 
@@ -320,6 +407,16 @@ export function SystemPage() {
       // ignore
     });
   }, [fetchConfig]);
+
+  useEffect(() => {
+    versionCheckRequestId.current += 1;
+    setVersionCheckState({
+      status: 'idle',
+      latestVersion: null,
+      checkedAt: null,
+      errorMessage: null,
+    });
+  }, [auth.apiBase, auth.connectionStatus, auth.serverVersion]);
 
   useEffect(() => {
     if (requestLogModalOpen && !requestLogTouched) {
@@ -371,7 +468,7 @@ export function SystemPage() {
                   size="sm"
                   className={styles.tileAction}
                   onClick={() => void handleVersionCheck()}
-                  loading={checkingVersion}
+                  loading={versionCheckState.status === 'loading'}
                   title={t('system_info.version_check_button')}
                   aria-label={t('system_info.version_check_button')}
                 >
@@ -379,6 +476,33 @@ export function SystemPage() {
                 </Button>
               </div>
               <div className={styles.tileValue}>{apiVersion}</div>
+              <div className={styles.versionMeta}>
+                <div className={styles.versionMetaRow}>
+                  <span className={styles.versionMetaLabel}>
+                    {t('system_info.version_latest_label')}
+                  </span>
+                  <span className={styles.versionMetaValue}>{latestVersionDisplay}</span>
+                </div>
+                {versionCheckState.latestVersion && (
+                  <a
+                    href={versionReleaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.versionReleaseLink}
+                  >
+                    <span>{t('system_info.version_release_link')}</span>
+                    <IconExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+              <div className={`${styles.versionStatus} ${versionStatusClassName}`}>
+                {versionStatusText}
+              </div>
+              {versionLastChecked && (
+                <div className={styles.tileSub}>
+                  {t('system_info.last_update_label')} {versionLastChecked}
+                </div>
+              )}
             </div>
 
             <div className={styles.infoTile}>

@@ -238,35 +238,74 @@
   font-size: 12px;
 }
 
-.versionCheck {
+.versionMeta {
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: $spacing-xs;
 }
 
-.versionInfo {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: $spacing-md;
+.versionMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
 
-  .versionItem {
-    padding: $spacing-md;
-    background-color: var(--bg-secondary);
-    border-radius: $radius-md;
+.versionMetaLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
-    .label {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: $spacing-xs;
-    }
+.versionMetaValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
 
-    .version {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    }
+.versionReleaseLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
   }
+}
+
+.versionStatus {
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: $radius-full;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.versionStatusNeutral {
+  background: color-mix(in srgb, var(--bg-primary) 55%, var(--bg-hover));
+  color: var(--text-secondary);
+}
+
+.versionStatusSuccess {
+  background: color-mix(in srgb, #16a34a 12%, var(--bg-primary));
+  color: #15803d;
+}
+
+.versionStatusWarning {
+  background: color-mix(in srgb, #f59e0b 14%, var(--bg-primary));
+  color: #b45309;
+}
+
+.versionStatusError {
+  background: color-mix(in srgb, #ef4444 14%, var(--bg-primary));
+  color: #b91c1c;
 }
 
 .quickLinks {

@@ -27,6 +27,17 @@ export interface ServerVersion {
   buildDate?: string;
 }
 
+export interface LatestVersionApiPayload extends Record<string, unknown> {
+  'latest-version'?: string;
+  latest_version?: string;
+  latest?: string;
+}
+
+export interface LatestVersionResponse {
+  latestVersion: string | null;
+  raw: LatestVersionApiPayload;
+}
+
 // API 错误
 export type ApiError = Error & {
   status?: number;
