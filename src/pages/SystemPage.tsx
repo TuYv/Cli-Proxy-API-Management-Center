@@ -71,8 +71,8 @@ export function SystemPage() {
 
   const models = useModelsStore((state) => state.models);
   const modelsLoading = useModelsStore((state) => state.loading);
-  const modelsError = useModelsStore((state) => state.error);
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
+  const clearModelsCache = useModelsStore((state) => state.clearCache);
 
   const [modelStatus, setModelStatus] = useState<{
     type: 'success' | 'warning' | 'error' | 'muted';
@@ -228,6 +228,14 @@ export function SystemPage() {
     try {
       const apiKeys = await resolveApiKeysForModels();
       const primaryKey = apiKeys[0];
+      if (!primaryKey) {
+        clearModelsCache();
+        setModelStatus({
+          type: 'warning',
+          message: t('system_info.models_missing_api_key'),
+        });
+        return;
+      }
       const list = await fetchModelsFromStore(auth.apiBase, primaryKey, forceRefresh);
       const hasModels = list.length > 0;
       setModelStatus({
@@ -592,13 +600,18 @@ export function SystemPage() {
         >
           <p className={styles.sectionDescription}>{t('system_info.models_desc')}</p>
           {modelStatus && (
-            <div className={`status-badge ${modelStatus.type}`}>{modelStatus.message}</div>
+            <div className={`${styles.sectionStatus} ${styles[`sectionStatus${modelStatus.type[0].toUpperCase()}${modelStatus.type.slice(1)}`]}`}>
+              {modelStatus.message}
+            </div>
           )}
-          {modelsError && <div className="error-box">{modelsError}</div>}
           {modelsLoading ? (
-            <div className="hint">{t('common.loading')}</div>
+            <div className={styles.sectionHint}>{t('common.loading')}</div>
           ) : models.length === 0 ? (
-            <div className="hint">{t('system_info.models_empty')}</div>
+            <div className={styles.sectionHint}>
+              {modelStatus?.type === 'warning' && modelStatus.message === t('system_info.models_missing_api_key')
+                ? t('system_info.models_missing_api_key')
+                : t('system_info.models_empty')}
+            </div>
           ) : (
             <div className="item-list">
               {groupedModels.map((group) => {

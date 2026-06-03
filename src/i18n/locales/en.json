@@ -1259,6 +1259,7 @@
     "models_desc": "Shows the /models response and uses saved API keys for auth automatically.",
     "models_loading": "Loading available models...",
     "models_empty": "No models returned by /models",
+    "models_missing_api_key": "No proxy API key is available for querying /v1/models. Configure one in Accounts or API Keys and refresh.",
     "models_error": "Failed to load model list",
     "models_count": "{{count}} available models",
     "version_check_title": "Update Check",

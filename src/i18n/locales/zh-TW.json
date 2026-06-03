@@ -1285,6 +1285,7 @@
     "models_desc": "展示 /models 回傳的模型，並自動使用伺服器儲存的 API Key 進行驗證。",
     "models_loading": "正在載入可用模型...",
     "models_empty": "未從 /models 取得到模型資料",
+    "models_missing_api_key": "目前沒有可用於查詢 /v1/models 的代理 API Key，請先在帳戶管理或 API 金鑰中設定後再重新整理。",
     "models_error": "取得模型清單失敗",
     "models_count": "可用模型 {{count}} 個",
     "version_check_title": "版本檢查",
