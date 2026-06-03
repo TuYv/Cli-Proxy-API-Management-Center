@@ -13,11 +13,12 @@ import {
 } from '@/features/usageStats/utils';
 import styles from './UsageStatsPage.module.scss';
 
-const compactIdentifier = (value: string) => {
+const maskSecret = (value: string) => {
   const trimmed = value.trim();
-  if (!trimmed) return '-';
-  if (trimmed.length <= 18) return trimmed;
-  return `${trimmed.slice(0, 8)}…${trimmed.slice(-6)}`;
+  if (!trimmed) return '••••••••';
+  if (trimmed.length > 8) return `${'•'.repeat(24)}${trimmed.slice(-6)}`;
+  if (trimmed.length > 4) return `${'•'.repeat(12)}${trimmed.slice(-2)}`;
+  return '••••••••';
 };
 
 const numberFormatter = (locale: string) =>
@@ -31,11 +32,11 @@ const buildAccountLabel = (row: UsageAccountRow) =>
     : row.accountId || row.accountName || '-';
 
 const buildApiKeyLabel = (row: UsageAccountRow) => {
-  const compactKeyId = compactIdentifier(row.apiKeyId);
+  const maskedKeyId = maskSecret(row.apiKeyId);
   if (row.apiKeyName && row.apiKeyName !== row.apiKeyId) {
-    return `${row.apiKeyName} (${compactKeyId})`;
+    return `${row.apiKeyName} (${maskedKeyId})`;
   }
-  return compactKeyId;
+  return maskedKeyId;
 };
 
 export function UsageStatsPage() {
@@ -67,7 +68,7 @@ export function UsageStatsPage() {
     const keyword = accountFilter.trim().toLowerCase();
     if (!keyword) return rows;
     return rows.filter((row) => {
-      const haystack = [row.accountId, row.accountName, row.apiKeyId, row.apiKeyName]
+      const haystack = [row.accountId, row.accountName, row.apiKeyName, buildApiKeyLabel(row)]
         .join(' ')
         .toLowerCase();
       return haystack.includes(keyword);
