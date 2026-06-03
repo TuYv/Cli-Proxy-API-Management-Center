@@ -13,6 +13,7 @@ import { AiProvidersOpenAIModelsPage } from '@/pages/AiProvidersOpenAIModelsPage
 import { AiProvidersVertexEditPage } from '@/pages/AiProvidersVertexEditPage';
 import { AuthFilesPage } from '@/pages/AuthFilesPage';
 import { AccountsPage } from '@/pages/AccountsPage';
+import { UsageStatsPage } from '@/pages/UsageStatsPage';
 import { AuthFilesOAuthExcludedEditPage } from '@/pages/AuthFilesOAuthExcludedEditPage';
 import { AuthFilesOAuthModelAliasEditPage } from '@/pages/AuthFilesOAuthModelAliasEditPage';
 import { OAuthPage } from '@/pages/OAuthPage';
@@ -27,6 +28,7 @@ const mainRoutes = [
   { path: '/settings', element: <Navigate to="/config" replace /> },
   { path: '/api-keys', element: <Navigate to="/accounts" replace /> },
   { path: '/accounts', element: <AccountsPage /> },
+  { path: '/usage-stats', element: <UsageStatsPage /> },
   { path: '/ai-providers/gemini/new', element: <AiProvidersGeminiEditPage /> },
   { path: '/ai-providers/gemini/:index', element: <AiProvidersGeminiEditPage /> },
   { path: '/ai-providers/codex/new', element: <AiProvidersCodexEditPage /> },

@@ -80,10 +80,17 @@ npm run build
   - OpenAI 兼容提供商（多 Key、Header、自助从 `/v1/models` 拉取并导入模型别名、可选浏览器侧 `chat/completions` 测试）。
   - Ampcode 集成（上游地址/密钥、强制映射、模型映射表）。
 - **认证文件**：上传/下载/删除 JSON 凭据，筛选/搜索/分页，标记 runtime-only；查看单个凭据可用模型（依赖后端支持）；管理 OAuth 排除模型（支持 `*` 通配符）；配置 OAuth 模型别名映射。
+- **账户管理**：管理 client account 与 account-scoped API key，支持账户增删改、Key 生成/复制、启停与基础历史用量查看。
+- **使用统计**：新增独立的 `/usage-stats` 页面，基于 `/v0/management/account-usage` 与 `/v0/management/api-key-usage` 展示历史账户用量、近期请求概览、时间范围筛选与汇总指标。该页与 `AccountsPage` 解耦，避免后续合并时被原页面逻辑覆盖或丢失。
 - **OAuth**：对 Codex、Anthropic/Claude、Antigravity、Gemini CLI、Kimi、xAI/Grok 发起 OAuth/设备码流程并轮询状态；支持提交回调 URL 或 xAI/Grok 页面显示的 code；包含 Vertex JSON 凭据导入与 iFlow Cookie 导入。
 - **配额管理**：管理 Claude、Antigravity、Codex、Gemini CLI 等提供商的配额上限与使用情况。
 - **日志**：增量拉取日志、自动刷新、搜索、隐藏管理端流量、清空日志；下载请求错误日志文件。
 - **系统信息**：快捷链接、版本检查、请求日志开关、本地登录信息清理，以及拉取 `/v1/models` 并分组展示（需要至少一个代理 API Key 才能查询模型）。
+
+## 补充文档
+
+- [管理中心与 CLIProxyAPI 更新逻辑对齐说明](doc/version-update-alignment_CN.md)
+- [独立使用统计页说明](doc/usage-stats-page_CN.md)
 
 ## 技术栈
 

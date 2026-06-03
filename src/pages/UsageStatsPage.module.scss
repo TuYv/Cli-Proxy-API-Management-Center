@@ -1,0 +1,238 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xl;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-lg;
+  flex-wrap: wrap;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pageDescription {
+  margin: $spacing-xs 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 780px;
+}
+
+.lastUpdated {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $spacing-md;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.summaryValue {
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.summarySubLabel {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.summarySubValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summaryMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.filters {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+  margin-bottom: $spacing-md;
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  min-width: 180px;
+
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  select,
+  input {
+    height: 42px;
+    padding: 0 12px;
+    border-radius: $radius-md;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+}
+
+.searchField {
+  min-width: min(320px, 100%);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+
+  td {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+}
+
+.primaryCell {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.secondaryCell {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: $spacing-md;
+}
+
+.providerCard {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+}
+
+.providerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.providerTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.providerMeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.providerStats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.emptyState,
+.errorBox,
+.warningBox {
+  padding: $spacing-md;
+  border-radius: $radius-md;
+  font-size: 14px;
+}
+
+.emptyState {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.errorBox {
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.warningBox {
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(120, 53, 15, 0.18);
+}
