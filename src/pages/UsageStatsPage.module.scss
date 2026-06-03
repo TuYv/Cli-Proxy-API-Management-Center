@@ -44,7 +44,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: $spacing-md;
 
-  @media (max-width: 1100px) {
+  @media (max-width: 1280px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -92,6 +92,14 @@
   color: var(--text-secondary);
 }
 
+.sectionCard {
+  overflow: hidden;
+}
+
+.historyIntro {
+  max-width: 980px;
+}
+
 .filters {
   display: flex;
   align-items: flex-end;
@@ -102,6 +110,7 @@
 
 .filterField {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: $spacing-xs;
   min-width: 180px;
@@ -124,7 +133,30 @@
 }
 
 .searchField {
-  min-width: min(320px, 100%);
+  flex: 1 1 420px;
+  min-width: min(360px, 100%);
+  max-width: 620px;
+
+  :global(.form-group) {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+.historyEmptyState,
+.recentEmptyState {
+  display: flex;
+  align-items: center;
+}
+
+.historyEmptyState {
+  min-height: 84px;
+  max-width: 980px;
+}
+
+.recentEmptyState {
+  min-height: 96px;
+  justify-content: center;
 }
 
 .tableWrap {

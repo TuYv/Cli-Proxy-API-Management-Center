@@ -1256,6 +1256,7 @@
     "models_desc": "Показывает ответ /models и автоматически использует сохранённые API-ключи для авторизации.",
     "models_loading": "Загрузка доступных моделей...",
     "models_empty": "Сервис /models не вернул модели",
+    "models_missing_api_key": "Нет доступного proxy API key для запроса /v1/models. Сначала настройте его в разделе Accounts или API Keys и обновите страницу.",
     "models_error": "Не удалось загрузить список моделей",
     "models_count": "Доступно моделей: {{count}}",
     "version_check_title": "Проверка обновлений",

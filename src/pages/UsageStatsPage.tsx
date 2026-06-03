@@ -174,52 +174,56 @@ export function UsageStatsPage() {
         </Card>
       </div>
 
-      <Card title={t('usage_stats.history_title')}>
-        <div className={styles.filters}>
-          <label className={styles.filterField}>
-            <span>{t('usage_stats.time_range')}</span>
-            <select value={preset} onChange={(event) => setPreset(event.target.value as UsageTimePreset)}>
-              <option value="all">{t('usage_stats.range_all')}</option>
-              <option value="24h">{t('usage_stats.range_24h')}</option>
-              <option value="7d">{t('usage_stats.range_7d')}</option>
-              <option value="30d">{t('usage_stats.range_30d')}</option>
-              <option value="custom">{t('usage_stats.range_custom')}</option>
-            </select>
-          </label>
-          {preset === 'custom' ? (
-            <>
-              <label className={styles.filterField}>
-                <span>{t('usage_stats.from')}</span>
-                <input
-                  type="datetime-local"
-                  value={fromValue}
-                  onChange={(event) => setFromValue(event.target.value)}
-                />
-              </label>
-              <label className={styles.filterField}>
-                <span>{t('usage_stats.to')}</span>
-                <input
-                  type="datetime-local"
-                  value={toValue}
-                  onChange={(event) => setToValue(event.target.value)}
-                />
-              </label>
-            </>
-          ) : null}
-          <label className={`${styles.filterField} ${styles.searchField}`}>
-            <span>{t('usage_stats.account_filter')}</span>
-            <Input
-              value={accountFilter}
-              onChange={(event) => setAccountFilter(event.target.value)}
-              placeholder={t('usage_stats.account_filter_placeholder')}
-            />
-          </label>
+      <Card title={t('usage_stats.history_title')} className={styles.sectionCard}>
+        <div className={styles.historyIntro}>
+          <div className={styles.filters}>
+            <label className={styles.filterField}>
+              <span>{t('usage_stats.time_range')}</span>
+              <select value={preset} onChange={(event) => setPreset(event.target.value as UsageTimePreset)}>
+                <option value="all">{t('usage_stats.range_all')}</option>
+                <option value="24h">{t('usage_stats.range_24h')}</option>
+                <option value="7d">{t('usage_stats.range_7d')}</option>
+                <option value="30d">{t('usage_stats.range_30d')}</option>
+                <option value="custom">{t('usage_stats.range_custom')}</option>
+              </select>
+            </label>
+            {preset === 'custom' ? (
+              <>
+                <label className={styles.filterField}>
+                  <span>{t('usage_stats.from')}</span>
+                  <input
+                    type="datetime-local"
+                    value={fromValue}
+                    onChange={(event) => setFromValue(event.target.value)}
+                  />
+                </label>
+                <label className={styles.filterField}>
+                  <span>{t('usage_stats.to')}</span>
+                  <input
+                    type="datetime-local"
+                    value={toValue}
+                    onChange={(event) => setToValue(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
+            <label className={`${styles.filterField} ${styles.searchField}`}>
+              <span>{t('usage_stats.account_filter')}</span>
+              <Input
+                value={accountFilter}
+                onChange={(event) => setAccountFilter(event.target.value)}
+                placeholder={t('usage_stats.account_filter_placeholder')}
+              />
+            </label>
+          </div>
         </div>
 
         {isLoading ? (
-          <div className={styles.emptyState}>{t('usage_stats.loading')}</div>
+          <div className={`${styles.emptyState} ${styles.historyEmptyState}`}>
+            {t('usage_stats.loading')}
+          </div>
         ) : filteredRows.length === 0 ? (
-          <div className={styles.emptyState}>
+          <div className={`${styles.emptyState} ${styles.historyEmptyState}`}>
             {rows.length === 0
               ? t('usage_stats.history_empty')
               : t('usage_stats.history_empty_filtered')}
@@ -264,10 +268,12 @@ export function UsageStatsPage() {
         )}
       </Card>
 
-      <Card title={t('usage_stats.recent_title')}>
+      <Card title={t('usage_stats.recent_title')} className={styles.sectionCard}>
         {recentUsageError ? <div className={styles.warningBox}>{recentUsageError}</div> : null}
         {providerCards.length === 0 ? (
-          <div className={styles.emptyState}>{t('usage_stats.recent_empty')}</div>
+          <div className={`${styles.emptyState} ${styles.recentEmptyState}`}>
+            {t('usage_stats.recent_empty')}
+          </div>
         ) : (
           <div className={styles.providerGrid}>
             {providerCards.map((card) => {
